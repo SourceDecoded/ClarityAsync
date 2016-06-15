@@ -1,0 +1,98 @@
+<html>
+<head>
+	<title>Chaining</title>
+</head>
+<body>
+	Url: <input id="url"/>
+	<button id="fetch">Fetch</button><button id="cancel">Cancel</button>
+	<div id="output"></div>
+	
+	<script src="../Future.js"></script>
+	<script>
+	
+		var urlElement = document.querySelector("#url");
+		var output = document.querySelector("#output");
+		var fetchButton = document.querySelector("#fetch");
+		var cancelButton = document.querySelector("#cancel");
+		
+		var fetch = function(url, options){
+			options = options || {};
+			
+			if (!url){
+				return Future.fromError(new Error("Invalid Url."));
+			}
+		
+			var method = options.method || "GET";
+			var headers = options.headers || {};
+			var body = options.body || undefined;
+			
+			 var isSuccessfulRequest = function (xhr) {
+				return (xhr.status < 300 && xhr.status >= 200) || (xhr.status === 0 && xhr.responseText);
+			};
+			
+			return new Future(function (resolver) {
+				var xhr = new XMLHttpRequest();
+				xhr.onreadystatechange = function (event) {
+					if (xhr.readyState == 4) {						
+						if (isSuccessfulRequest(xhr)) {
+							resolver.resolve(xhr);
+						} else {
+						    var error = new Error("XHR error.");
+							error.xhr = xhr;
+							
+							resolver.reject(error);
+						}
+					}
+				};
+				
+				try {
+					
+					xhr.open(method, url, true);
+					Object.keys(headers).forEach(function (key) {
+						if (headers[key] !== false) {
+							xhr.setRequestHeader(key, headers[key]);
+						}
+					});
+					
+					xhr.send(body);
+				} catch (e) {
+					e.xhr = xhr;
+					resolver.reject(e);
+				}
+				
+				resolver.ifCanceled(function () {
+					xhr.abort();
+				});
+			});
+		};
+		 
+		var createLogEntryElement = function(text){
+			var div = document.createElement("div");
+			div.innerText = text;
+			return div;
+		};
+		
+		var log = function(text){
+			var div = createLogEntryElement(text);
+			output.appendChild(div);
+		};
+	
+		var currentFetch = Future.fromResult();
+	
+		fetchButton.addEventListener("click", function(){
+			currentFetch = fetch(urlElement.value).chain(function(xhr){
+				log(xhr.responseText);
+			}).catch(function(error){
+				log(error.message);
+			}).ifCanceled(function(){
+				log("Canceled");
+			}).try();
+		}, false);
+		
+		cancelButton.addEventListener("click", function(){
+			currentFetch.cancel();
+		}, false);
+	
+	</script>
+</body>
+</html>
