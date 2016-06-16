@@ -3,7 +3,10 @@
 	<title>Chaining</title>
 </head>
 <body>
-	Url: <input id="url"/>
+	<p>
+		If you want to see the canceled xhr press fetch with a high amount, then push cancel.
+	</p>
+	Url: <input id="url"/> Amount of Requests: <input id="amount"/>
 	<button id="fetch">Fetch</button><button id="cancel">Cancel</button>
 	<div id="output"></div>
 	
@@ -11,6 +14,7 @@
 	<script>
 	
 		var urlElement = document.querySelector("#url");
+		var amountElement = document.querySelector("#amount");
 		var output = document.querySelector("#output");
 		var fetchButton = document.querySelector("#fetch");
 		var cancelButton = document.querySelector("#cancel");
@@ -77,20 +81,26 @@
 			output.appendChild(div);
 		};
 	
-		var currentFetch = Future.fromResult();
+		var allFutures = [];
+		
+		var fetchBatch = function(amount){
+			for (var x = 0 ; x < amount; x++){
+				allFutures.push(fetch(urlElement.value).try());
+			}
+		};
 	
 		fetchButton.addEventListener("click", function(){
-			currentFetch = fetch(urlElement.value).chain(function(xhr){
-				log(xhr.responseText);
-			}).catch(function(error){
-				log(error.message);
-			}).ifCanceled(function(){
-				log("Canceled");
-			}).try();
+			var amount = parseInt(amountElement.value,10);
+			fetchBatch(amount);
 		}, false);
 		
 		cancelButton.addEventListener("click", function(){
-			currentFetch.cancel();
+			var futures = allFutures.slice(0);
+			allFutures = [];
+			
+			futures.forEach(function(future){
+				future.cancel();
+			});
 		}, false);
 	
 	</script>
