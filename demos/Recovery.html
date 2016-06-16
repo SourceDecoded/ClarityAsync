@@ -1,0 +1,118 @@
+<html>
+<head>
+	<title>Recovery</title>
+</head>
+<body>
+
+	<button id="begin">Begin</button><button id="cancel">Cancel</button>
+	<div id="output"></div>
+	
+	<script src="../Future.js"></script>
+	<script>
+	
+		var output = document.querySelector("#output");
+		var beginButton = document.querySelector("#begin");
+		var cancelButton = document.querySelector("#cancel");
+		
+		var createRecoveryUi = function(resolver){
+			var rejectButton = document.createElement("button");
+			rejectButton.innerText = "Reject";
+			rejectButton.addEventListener("click", resolver.reject, false);
+			
+			var resolveButton = document.createElement("button");
+			resolveButton.innerText = "Resolve";
+			resolveButton.addEventListener("click", resolver.resolve, false);
+			
+			var cancelButton = document.createElement("button");
+			cancelButton.innerText = "Cancel";
+			cancelButton.addEventListener("click", resolver.cancel, false);
+			
+			var container = document.createElement("div");
+			
+			container.appendChild(resolveButton);
+			container.appendChild(rejectButton);
+			container.appendChild(cancelButton);
+			
+			return container;
+		};
+		
+		var createRecovery = function(){
+			var outerResolver;
+			var future = new Future(function(resolver){
+				outerResolver = resolver;
+			}).try();
+			
+			var ui = createRecoveryUi(outerResolver);
+			
+			return {
+				future: future,
+				ui: ui
+			};
+		};
+
+		var createLogEntryElement = function(text){
+			var div = document.createElement("div");
+			div.innerText = text;
+			return div;
+		};
+		
+		var log = function(text){
+			var div = createLogEntryElement(text);
+			output.appendChild(div);
+		};
+		
+		var logUi = function(element){
+			output.appendChild(element);
+		};
+		
+		var delayAsync = function(milliseconds){
+			return new Future(function(resolver){
+				setTimeout(resolver.resolve, milliseconds);
+			});
+		};
+		
+		var chain = delayAsync(1000).chain(function(){
+			log("First");
+			return delayAsync(1000);
+		}).chain(function(){
+			log("Second");
+			return Future.fromError(new Error("Whoops"))
+		}).chain(function(){
+			log("Third");
+			return delayAsync(1000);
+		}).catch(function(){
+			log("Error");
+			
+			var recovery = createRecovery();
+			logUi(recovery.ui);
+			
+			return recovery.future;
+		}).chain(function(){
+			log("Fourth");
+			return delayAsync(1000);
+		}).chain(function(){
+			log("Fifth");
+			return delayAsync(1000);
+		}).chain(function(){
+			log("Sixth");
+			return delayAsync(1000);
+		}).chain(function(){
+			log("Done");
+			return delayAsync(1000);
+		}).catch(function(){
+			log("We failed.... :(");
+		}).ifCanceled(function(){
+			log("Canceled");
+		});
+		
+		beginButton.addEventListener("click", function(){
+			chain.try();
+		}, false);
+		
+		cancelButton.addEventListener("click", function(){
+			chain.cancel();
+		}, false);
+	
+	</script>
+</body>
+</html>
